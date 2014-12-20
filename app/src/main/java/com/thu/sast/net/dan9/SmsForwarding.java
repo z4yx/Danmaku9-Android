@@ -195,6 +195,7 @@ public class SmsForwarding implements Runnable {
     void doForwarding()
     {
         int latest;
+        mDirtyFlag = false;
         if(mFromLastSent)
             latest = readLatestSent();
         else
