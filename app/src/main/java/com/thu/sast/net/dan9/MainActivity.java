@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,6 +30,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
     EditText mEditServer, mEditPrefix;
     Button mStartStopBtn;
+    ImageButton mQRcodeBtn;
     SmsForwarding mSmsForwarding;
     boolean mIsThreadRunning;
 
@@ -72,12 +75,16 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         registerReceiver(mSmsReceiver, new IntentFilter(SMS_RECEIVED_ACTION));
 
         mStartStopBtn = (Button)findViewById(R.id.start_stop);
+        mQRcodeBtn = (ImageButton)findViewById(R.id.qrcodeBtn);
         mEditPrefix = (EditText)findViewById(R.id.editPrefix);
         mEditServer = (EditText)findViewById(R.id.editServer);
         mStartStopBtn.setOnClickListener(this);
+        mQRcodeBtn.setOnClickListener(this);
+        mEditServer.setText(serverUrlPreference(null));
     }
 
     void setRunStateUI(boolean running){
+        mQRcodeBtn.setEnabled(!running);
         mEditPrefix.setEnabled(!running);
         mEditServer.setEnabled(!running);
         ((TextView)findViewById(R.id.textState)).setText(running ? "运行中" : "已停止");
@@ -87,6 +94,18 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
     void setProcessedUI(int count){
         ((TextView)findViewById(R.id.textProcessed)).setText("" + count);
+    }
+
+    String serverUrlPreference(String updated)
+    {
+
+        SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
+        if(updated != null) {
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putString("server_url", updated);
+            editor.commit();
+        }
+        return sharedPref.getString("server_url", "");
     }
 
     @Override
@@ -113,23 +132,39 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
     @Override
     public void onClick(View view) {
-        if(mIsThreadRunning)
-            mSmsForwarding.Stop();
-        else {
-            try {
-                mSmsForwarding.setDan9Server(new URL(mEditServer.getText().toString()));
-            } catch (MalformedURLException e) {
-                Toast.makeText(this, "无效的服务器地址", Toast.LENGTH_SHORT).show();
-                return;
+        if(view.getId() == mStartStopBtn.getId()) {
+            if (mIsThreadRunning)
+                mSmsForwarding.Stop();
+            else {
+                try {
+                    mSmsForwarding.setDan9Server(new URL(mEditServer.getText().toString()));
+                } catch (MalformedURLException e) {
+                    Toast.makeText(this, "无效的服务器地址", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    mSmsForwarding.setSmsPrefix(mEditPrefix.getText().toString());
+                } catch (Exception e) {
+                    Toast.makeText(this, "无效的短信前缀", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                setRunStateUI(true);
+                mSmsForwarding.Start(((CheckBox) findViewById(R.id.fromLastSent)).isChecked());
             }
-            try {
-                mSmsForwarding.setSmsPrefix(mEditPrefix.getText().toString());
-            } catch (Exception e) {
-                Toast.makeText(this, "无效的短信前缀", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            setRunStateUI(true);
-            mSmsForwarding.Start(((CheckBox)findViewById(R.id.fromLastSent)).isChecked());
+        }else if(view.getId() == mQRcodeBtn.getId()){
+            Intent intent = new Intent();
+            intent.setClass(this, SimpleScannerActivity.class);
+            startActivityForResult(intent, 1);
+        }
+    }
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode == 1) {
+            String result = data.getExtras().getString("url");
+            mEditServer.setText(result);
+            serverUrlPreference(result);
         }
     }
 

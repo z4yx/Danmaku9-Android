@@ -49,6 +49,13 @@
                 android:text="http://c.n9.vc/app/new"
                 android:ellipsize="start"
                 android:inputType="textUri" />
+
+            <ImageButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/qrcodeBtn"
+                android:src="@drawable/qr_icon" />
+
         </TableRow>
 
         <TableRow
